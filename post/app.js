@@ -5,42 +5,127 @@ var config = require('./config.js');
 var T = new Twitter(config);
 const fs = require('fs');
 
-// get new potential tweets from file
-fs.readFile('botTweetsFuture.txt', (err, data) => {
+fs.readFile('whichList.txt', 'utf8', (err, data) => {
   if (err) throw err;
 
-  lines = (data+"").replace(/\n$/, '').split('\n');
+  data = data.split("\n");
+  console.log("whichList.txt data: " + data);
 
-  // choose random line to select for today's tweet
-  lineIndex = Math.floor(Math.random() * lines.length);
-  theLine = lines[lineIndex];
+  if(data[0] == "gibberish"){
+    if(parseInt(data[1]) >= 4){
+      // invert to other list
+      data[0] = "story";
+      data[1] = 1;
 
-  lines.splice(lineIndex, 1);
+      postFromStory();
+    } else {
+      // continue posting on this list
+      data[1] = parseInt(data[1]) + 1;
 
-  console.log(theLine);
+      postFromGibberish();
+    }
+  } else if(data[0] == "story"){
+    if(parseInt(data[1]) >= 4){
+      // invert to other list
+      data[0] = "gibberish";
+      data[1] = 1;
 
-  // log that that tweet has been posted
-  fs.appendFile('botTweetsPast.txt', theLine + "\n", (err) => {
-    if (err) throw err;
+      postFromGibberish();
+    } else {
+      // continue posting on this list
+      data[1] = parseInt(data[1]) + 1;
 
-    console.log("Appended tweet to past tweets file.");
-  })
-
-  // remove the tweet we just posted from the need to tweet file
-  output = ""
-  for(i = 0; i < lines.length; i++){
-    output = output + lines[i] + "\n";
+      postFromStory();
+    }
   }
 
-  fs.writeFile('botTweetsFuture.txt', output, (err) => {
+  outputArray = [data[0], data[1]];
+  output = ""
+  for(i = 0; i < outputArray.length; i++){
+    output = output + outputArray[i] + "\n";
+  }
+
+  // write back to whichList.txt file
+  fs.writeFile('whichList.txt', output, (err) => {
     if (err) throw err;
 
-    console.log("Wrote back to file without our fancy line.");
+    console.log("Wrote back updated whichList.txt");
   })
+});
 
-  // initiate send our new tweet
-  sendTweet(theLine);
-})
+function postFromGibberish(){
+  // get new potential tweets from file
+  fs.readFile('botTweetsFutureGibberish.txt', (err, data) => {
+    if (err) throw err;
+
+    lines = (data+"").replace(/\n$/, '').split('\n');
+
+    // choose random line to select for today's tweet
+    lineIndex = Math.floor(Math.random() * lines.length);
+    theLine = lines[lineIndex];
+
+    lines.splice(lineIndex, 1);
+
+    console.log(theLine);
+
+    // log that that tweet has been posted
+    fs.appendFile('botTweetsPastGibberish.txt', theLine + "\n", (err) => {
+      if (err) throw err;
+
+      console.log("Appended tweet to past tweets file.");
+    })
+
+    // remove the tweet we just posted from the need to tweet file
+    output = ""
+    for(i = 0; i < lines.length; i++){
+      output = output + lines[i] + "\n";
+    }
+
+    fs.writeFile('botTweetsFutureGibberish.txt', output, (err) => {
+      if (err) throw err;
+
+      console.log("Wrote back to file without our fancy line.");
+    })
+
+    // initiate send our new tweet
+    sendTweet(theLine);
+  })
+}
+
+function postFromStory(){
+  fs.readFile('botTweetsFutureStory.txt', (err, data) => {
+    if (err) throw err;
+
+    lines = (data + "").replace(/\n$/, '').split('\n');
+
+    // choose first line so that it posts in order
+    lineIndex = 0;
+    theLine = lines[lineIndex];
+
+    lines.splice(lineIndex, 1);
+
+    console.log(theLine);
+
+    fs.appendFile('botTweetsPastStory.txt', theLine + "\n", (err) => {
+      if (err) throw err;
+
+      console.log("Appended tweet to past tweets file.");
+    })
+
+    output = "";
+    for(i = 0; i < lines.length; i++){
+      output = output + lines[i] + "\n";
+    }
+
+    fs.writeFile('botTweetsFutureStory.txt', output, (err) => {
+      if (err) throw err;
+
+      console.log("Wrote back to file without the tweeted line.");
+    })
+
+    sendTweet(theLine);
+  })
+}
 
 function sendTweet(tweetBody){
   T.post('statuses/update', {status: tweetBody}, function(error, tweet, response) {
