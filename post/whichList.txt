@@ -1,2 +1,2 @@
-gibberish
-2
+story
+1
